@@ -46,7 +46,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // IMPORTANT: Handle OPTIONS preflight for all routes
-// app.options("*", cors(corsOptions)); // This is fine - it's for OPTIONS only
+app.options("*", cors(corsOptions)); // This is fine - it's for OPTIONS only
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -78,13 +78,13 @@ app.use((req, res) => {
 });
 
 // Start server only if not in Vercel serverless environment
-if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-    console.log(`🔑 Admin login: http://localhost:${PORT}/api/admin/login`);
-  });
-}
+// if (process.env.NODE_ENV !== "production") {
+//   app.listen(PORT, () => {
+//     console.log(`🚀 Server running on http://localhost:${PORT}`);
+//     console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+//     console.log(`🔑 Admin login: http://localhost:${PORT}/api/admin/login`);
+//   });
+// }
 
 // For Vercel serverless
 export default app;
