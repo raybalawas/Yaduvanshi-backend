@@ -10,39 +10,23 @@ dotenv.config();
 
 const app = express();
 
-// ✅ CORS - Allow all origins for Vercel
-app.use(cors({
-  origin: '*',
+// ✅ Updated CORS - Allow all origins for now
+const corsOptions = {
+  origin: '*', // Allow all origins
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true,
   optionsSuccessStatus: 200
-}));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Connect to MongoDB before handling routes (for serverless)
-let dbConnected = false;
-
-const initDB = async () => {
-  if (!dbConnected) {
-    await connectDB();
-    dbConnected = true;
-  }
-};
-
-// Middleware to ensure DB connection
-app.use(async (req, res, next) => {
-  try {
-    await initDB();
-    next();
-  } catch (error) {
-    console.error('DB Connection Error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Database connection error. Please try again.' 
-    });
-  }
-});
+// Connect to MongoDB
+connectDB();
 
 // Routes
 app.use("/api/talent-exam", talentExamRoutes);
@@ -55,7 +39,6 @@ app.get("/api/health", (req, res) => {
     success: true, 
     status: "OK", 
     message: "Server is running",
-    mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     time: new Date()
   });
 });
@@ -65,8 +48,7 @@ app.get("/", (req, res) => {
   res.json({ 
     success: true,
     message: "Yaduvanshi Academy Backend API",
-    version: "1.0.0",
-    status: "running"
+    version: "1.0.0"
   });
 });
 
@@ -87,5 +69,4 @@ app.use((req, res) => {
   });
 });
 
-// Export for Vercel
 export default app;
