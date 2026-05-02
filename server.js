@@ -77,14 +77,6 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
 
-// Start server only if not in Vercel serverless environment
-// if (process.env.NODE_ENV !== "production") {
-//   app.listen(PORT, () => {
-//     console.log(`🚀 Server running on http://localhost:${PORT}`);
-//     console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-//     console.log(`🔑 Admin login: http://localhost:${PORT}/api/admin/login`);
-//   });
-// }
 
 // For Vercel serverless
 export default app;
