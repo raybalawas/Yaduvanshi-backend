@@ -1,33 +1,25 @@
-import dotenv from 'dotenv';
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import talentExamRoutes from "./routes/talentExamRoutes.js";
 import talentResultRoutes from "./routes/talentResultRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 
-// Load environment variables FIRST
 dotenv.config();
 
 const app = express();
 
-// Debug: Check environment variables
-console.log('🔧 Environment Variables Check:');
-console.log('PORT:', process.env.PORT);
-console.log('MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
-console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✅ Set' : '❌ Missing');
-
-// CORS configuration
-const corsOptions = {
+// ✅ Updated CORS - Allow all origins for now
+app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
+  credentials: true
+}));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+// Handle preflight requests
+app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -42,18 +34,17 @@ app.use("/api/admin", adminRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    status: "OK",
+  res.json({ 
+    success: true, 
+    status: "OK", 
     message: "Server is running",
-    mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
     time: new Date()
   });
 });
 
 // Root route
 app.get("/", (req, res) => {
-  res.json({
+  res.json({ 
     success: true,
     message: "Yaduvanshi Academy Backend API",
     version: "1.0.0"
@@ -63,17 +54,17 @@ app.get("/", (req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error("Error:", err.message);
-  res.status(500).json({
-    success: false,
-    message: err.message || "Internal Server Error"
+  res.status(500).json({ 
+    success: false, 
+    message: err.message || "Internal Server Error" 
   });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `Route ${req.url} not found`
+  res.status(404).json({ 
+    success: false, 
+    message: `Route ${req.url} not found` 
   });
 });
 
