@@ -298,6 +298,7 @@ export const getResultByPhone = async (req, res) => {
         message: "No result found for this phone number",
       });
     }
+    
 
     res.status(200).json({
       success: true,
