@@ -1,6 +1,36 @@
 import TalentResult from "../models/TalentExamResult.js";
 import TalentExam from "../models/TalentExam.js";
 
+// Helper function to get total marks based on class
+const getTotalMarksByClass = (className) => {
+  const classNum = parseInt(className);
+  if (classNum === 3 || classNum === 4 || className === '3rd' || className === '4th') {
+    return 50;
+  }
+  return 60; // For 5th, 6th, 7th, 8th
+};
+
+// Helper function to calculate percentage
+const calculatePercentage = (marks, className) => {
+  const totalMarks = getTotalMarksByClass(className);
+  return (marks / totalMarks) * 100;
+};
+
+// Helper function to get grade based on percentage
+const getGrade = (percentage) => {
+  if (percentage >= 90) return 'A+';
+  if (percentage >= 80) return 'A';
+  if (percentage >= 70) return 'B+';
+  if (percentage >= 60) return 'B';
+  if (percentage >= 50) return 'C';
+  if (percentage >= 40) return 'D';
+  return 'F';
+};
+
+// Helper function to get result status
+const getResultStatus = (percentage) => {
+  return percentage >= 40 ? 'pass' : 'fail';
+};
 
 // @desc    Upload single result
 // @route   POST /api/talent-result/upload
@@ -17,7 +47,7 @@ export const uploadResult = async (req, res) => {
       srNo,
     } = req.body;
 
-    // Check if result already exists for this phone and class
+    // Check if result already exists
     const existingResult = await TalentResult.findOne({
       phone,
       class: studentClass,
@@ -31,7 +61,12 @@ export const uploadResult = async (req, res) => {
       });
     }
 
-    // Check if student exists in registration
+    // Calculate percentage based on class
+    const percentage = calculatePercentage(marks, studentClass);
+    const resultStatus = getResultStatus(percentage);
+    const grade = getGrade(percentage);
+    const totalMarks = getTotalMarksByClass(studentClass);
+
     const registration = await TalentExam.findOne({ phone });
 
     const result = await TalentResult.create({
@@ -41,6 +76,10 @@ export const uploadResult = async (req, res) => {
       phone,
       class: studentClass,
       marks,
+      totalMarks,
+      percentage,
+      resultStatus,
+      grade,
       rollNo: rollNo || "",
       srNo: srNo || null,
     });
@@ -79,7 +118,7 @@ export const bulkUploadResults = async (req, res) => {
 
     for (const item of results) {
       try {
-        // Map Excel columns to expected fields (support multiple column name variations)
+        // Map Excel columns to expected fields
         const name = item.NAME || item.name || item['Student Name'] || item['STUDENT NAME'];
         const fName = item['FATHER NAME'] || item.fName || item['Father Name'] || item.FATHER_NAME;
         const phone = item['MOBILE NO'] || item.phone || item.MOBILE || item['Phone Number'] || item.PHONE;
@@ -97,10 +136,6 @@ export const bulkUploadResults = async (req, res) => {
           errors.push({ item, error: "Father name is required" });
           continue;
         }
-        if (!phone) {
-          errors.push({ item, error: "Phone number is required" });
-          continue;
-        }
         if (!studentClass) {
           errors.push({ item, error: "Class is required" });
           continue;
@@ -110,7 +145,6 @@ export const bulkUploadResults = async (req, res) => {
           continue;
         }
 
-        // Clean phone number (remove non-digits)
         const cleanPhone = String(phone).replace(/\D/g, '');
 
         // Check if result already exists
@@ -128,7 +162,12 @@ export const bulkUploadResults = async (req, res) => {
           continue;
         }
 
-        // Find registration if exists
+        // Calculate percentage based on class
+        const percentage = calculatePercentage(Number(marks), studentClass);
+        const resultStatus = getResultStatus(percentage);
+        const grade = getGrade(percentage);
+        const totalMarks = getTotalMarksByClass(studentClass);
+
         const registration = await TalentExam.findOne({ phone: cleanPhone });
 
         const result = await TalentResult.create({
@@ -138,6 +177,10 @@ export const bulkUploadResults = async (req, res) => {
           phone: cleanPhone,
           class: studentClass,
           marks: Number(marks),
+          totalMarks,
+          percentage,
+          resultStatus,
+          grade,
           rollNo: rollNo ? String(rollNo) : '',
           srNo: srNo || null
         });
@@ -167,6 +210,9 @@ export const bulkUploadResults = async (req, res) => {
         name: r.name,
         phone: r.phone,
         marks: r.marks,
+        totalMarks: r.totalMarks,
+        percentage: r.percentage,
+        grade: r.grade,
         rank: r.rank
       })),
       errors
@@ -196,7 +242,6 @@ export const calculateAndUpdateRanks = async (req, res) => {
 
       if (classResults.length === 0) continue;
 
-      // Update ranks
       let currentRank = 1;
       let previousMarks = null;
 
@@ -209,7 +254,7 @@ export const calculateAndUpdateRanks = async (req, res) => {
 
         await TalentResult.updateOne(
           { _id: result._id },
-          { rank: currentRank },
+          { rank: currentRank }
         );
 
         previousMarks = result.marks;
@@ -217,7 +262,6 @@ export const calculateAndUpdateRanks = async (req, res) => {
       }
     }
 
-    // Only send response if req and res exist (called as API endpoint)
     if (req && res) {
       res.status(200).json({
         success: true,
@@ -286,23 +330,37 @@ export const getAllResults = async (req, res) => {
 // @desc    Get result by phone number
 // @route   GET /api/talent-result/check/:phone
 // @access  Public
+// @desc    Get result by phone number (can return multiple results)
+// @route   GET /api/talent-result/check/:phone
+// @access  Public
 export const getResultByPhone = async (req, res) => {
   try {
     const { phone } = req.params;
 
-    const result = await TalentResult.findOne({ phone });
+    // Find ALL results for this phone number (not just one)
+    const results = await TalentResult.find({ phone }).sort({ class: 1 });
 
-    if (!result) {
+    if (!results || results.length === 0) {
       return res.status(404).json({
         success: false,
         message: "No result found for this phone number",
       });
     }
-    
 
+    // If single result, return as object (backward compatible)
+    if (results.length === 1) {
+      return res.status(200).json({
+        success: true,
+        data: results[0],
+      });
+    }
+
+    // If multiple results, return as array
     res.status(200).json({
       success: true,
-      data: result,
+      multiple: true,
+      count: results.length,
+      data: results,
     });
   } catch (error) {
     console.error("Get result error:", error);
@@ -322,7 +380,7 @@ export const getClassRankList = async (req, res) => {
 
     const results = await TalentResult.find({ class: className })
       .sort({ rank: 1 })
-      .select("name fName phone marks rollNo rank srNo");
+      .select("name fName phone marks totalMarks percentage grade rollNo rank srNo");
 
     res.status(200).json({
       success: true,
@@ -355,12 +413,19 @@ export const updateResult = async (req, res) => {
       });
     }
 
-    if (marks) result.marks = marks;
-    if (rollNo) result.rollNo = rollNo;
+    if (marks !== undefined) {
+      result.marks = marks;
+      // Recalculate percentage based on class
+      const totalMarks = getTotalMarksByClass(result.class);
+      result.totalMarks = totalMarks;
+      result.percentage = (marks / totalMarks) * 100;
+      result.resultStatus = getResultStatus(result.percentage);
+      result.grade = getGrade(result.percentage);
+    }
+    if (rollNo !== undefined) result.rollNo = rollNo;
 
     await result.save();
 
-    // Recalculate ranks after update
     await calculateAndUpdateRanks(null, null);
 
     res.status(200).json({
@@ -392,7 +457,6 @@ export const deleteResult = async (req, res) => {
       });
     }
 
-    // Recalculate ranks after deletion
     await calculateAndUpdateRanks(null, null);
 
     res.status(200).json({
@@ -419,28 +483,29 @@ export const getResultStats = async (req, res) => {
     for (const className of classes) {
       const results = await TalentResult.find({ class: className });
       const total = results.length;
-      const passed = results.filter((r) => r.marks >= 33).length;
-      const avgMarks =
-        results.reduce((sum, r) => sum + r.marks, 0) / (total || 1);
+      const passed = results.filter((r) => r.resultStatus === 'pass').length;
+      const avgMarks = results.reduce((sum, r) => sum + r.marks, 0) / (total || 1);
       const highest = Math.max(...results.map((r) => r.marks), 0);
       const lowest = Math.min(...results.map((r) => r.marks), 0);
+      const avgPercentage = results.reduce((sum, r) => sum + r.percentage, 0) / (total || 1);
+      const totalMarks = getTotalMarksByClass(className);
 
       stats.push({
         class: className,
+        totalMarks,
         totalStudents: total,
         passed,
         failed: total - passed,
         passPercentage: total ? ((passed / total) * 100).toFixed(2) : 0,
         averageMarks: avgMarks.toFixed(2),
+        averagePercentage: avgPercentage.toFixed(2),
         highestMarks: highest,
         lowestMarks: lowest,
       });
     }
 
     const totalStudents = await TalentResult.countDocuments();
-    const totalPassed = await TalentResult.countDocuments({
-      marks: { $gte: 33 },
-    });
+    const totalPassed = await TalentResult.countDocuments({ resultStatus: 'pass' });
 
     res.status(200).json({
       success: true,
@@ -460,3 +525,7 @@ export const getResultStats = async (req, res) => {
     });
   }
 };
+
+// Public routes (no auth required)
+export const getAllResultsPublic = getAllResults;
+export const getResultStatsPublic = getResultStats;
