@@ -1,90 +1,86 @@
+import dotenv from 'dotenv';
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import talentExamRoutes from "./routes/talentExamRoutes.js";
-import TalentResultRoutes from "./routes/talentResultRoutes.js";
+import talentResultRoutes from "./routes/talentResultRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 
+// Load environment variables FIRST
 dotenv.config();
-
-// Connect to MongoDB
-connectDB();
 
 const app = express();
 
-const PORT = process.env.PORT || 5000;
-
-// Get allowed origins
-const allowedOrigins = [
-  "https://yaduvanshiacademybansur-in.vercel.app",
-  "https://yaduvanshiacademybansur.vercel.app",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175",
-  "http://localhost:3000",
-];
+// Debug: Check environment variables
+console.log('🔧 Environment Variables Check:');
+console.log('PORT:', process.env.PORT);
+console.log('MONGODB_URI:', process.env.MONGODB_URI ? '✅ Set' : '❌ Missing');
+console.log('JWT_SECRET:', process.env.JWT_SECRET ? '✅ Set' : '❌ Missing');
 
 // CORS configuration
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (
-      allowedOrigins.indexOf(origin) !== -1 ||
-      process.env.NODE_ENV === "development"
-    ) {
-      callback(null, true);
-    } else {
-      console.log("CORS blocked origin:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true,
-  optionsSuccessStatus: 200,
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
-
-// IMPORTANT: Handle OPTIONS preflight for all routes
-app.options("*", cors(corsOptions)); // This is fine - it's for OPTIONS only
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes - make sure this matches
+// Connect to MongoDB
+connectDB();
+
+// Routes
 app.use("/api/talent-exam", talentExamRoutes);
-app.use("/api/talent-result", TalentResultRoutes);
+app.use("/api/talent-result", talentResultRoutes);
 app.use("/api/admin", adminRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "OK", message: "Server is running", time: new Date() });
+  res.json({
+    success: true,
+    status: "OK",
+    message: "Server is running",
+    mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    time: new Date()
+  });
 });
 
-// Root route for testing
+// Root route
 app.get("/", (req, res) => {
-  res.json({ message: "Yaduvanshi Academy Backend API" });
+  res.json({
+    success: true,
+    message: "Yaduvanshi Academy Backend API",
+    version: "1.0.0"
+  });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, message: err.message });
+  console.error("Error:", err.message);
+  res.status(500).json({
+    success: false,
+    message: err.message || "Internal Server Error"
+  });
 });
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.url} not found`
+  });
 });
 
-// Start server only if not in Vercel serverless environment
-// if (process.env.NODE_ENV !== "production") {
-//   app.listen(PORT, () => {
-//     console.log(`🚀 Server running on http://localhost:${PORT}`);
-//     console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-//     console.log(`🔑 Admin login: http://localhost:${PORT}/api/admin/login`);
-//   });
-// }
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+});
 
-// For Vercel serverless
 export default app;

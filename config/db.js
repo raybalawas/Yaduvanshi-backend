@@ -1,4 +1,3 @@
-// config/db.js
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
@@ -7,14 +6,10 @@ dotenv.config();
 const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+  console.error('❌ MONGODB_URI is not defined');
+  process.exit(1);
 }
 
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
 let cached = global.mongoose;
 
 if (!cached) {
@@ -23,29 +18,31 @@ if (!cached) {
 
 const connectDB = async () => {
   if (cached.conn) {
-    console.log('Using cached MongoDB connection');
+    console.log('✅ Using cached connection');
     return cached.conn;
   }
 
   if (!cached.promise) {
     const opts = {
-      bufferCommands: false,
-      // Add these options for serverless environments
+      bufferCommands: true,
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
-      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      serverSelectionTimeoutMS: 20000,
+      socketTimeoutMS: 45000,
+      family: 4, // Force IPv4 - This helps with DNS issues
     };
 
-    console.log('Connecting to MongoDB...');
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      console.log('MongoDB Connected Successfully');
-      return mongoose;
-    }).catch(err => {
-      console.error('MongoDB connection error in promise:', err);
-      // Don't cache the promise if it failed, so we can retry
-      cached.promise = null;
-      throw err;
-    });
+    console.log('🔄 Connecting to MongoDB Atlas...');
+
+    cached.promise = mongoose.connect(MONGODB_URI, opts)
+      .then((mongoose) => {
+        console.log('✅ MongoDB Connected!');
+        return mongoose;
+      })
+      .catch((err) => {
+        console.error('❌ Connection failed:', err.message);
+        cached.promise = null;
+        throw err;
+      });
   }
 
   try {
