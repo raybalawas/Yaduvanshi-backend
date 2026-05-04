@@ -525,7 +525,38 @@ export const getResultStats = async (req, res) => {
     });
   }
 };
-
+// @desc    Delete ALL results (Truncate table)
+// @route   DELETE /api/talent-result/truncate
+// @access  Private/Admin
+export const truncateAllResults = async (req, res) => {
+  try {
+    // Count total records before deletion
+    const totalRecords = await TalentResult.countDocuments();
+    
+    if (totalRecords === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No records found to delete. Database is already empty.",
+      });
+    }
+    
+    // Delete all documents from TalentResult collection
+    const result = await TalentResult.deleteMany({});
+    
+    res.status(200).json({
+      success: true,
+      message: `Successfully deleted ${result.deletedCount} records. All talent exam results have been cleared.`,
+      deletedCount: result.deletedCount,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Truncate results error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to delete records",
+    });
+  }
+};
 // Public routes (no auth required)
 export const getAllResultsPublic = getAllResults;
 export const getResultStatsPublic = getResultStats;
