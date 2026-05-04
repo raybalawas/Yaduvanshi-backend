@@ -8,7 +8,8 @@ import {
   updateResult,
   deleteResult,
   calculateAndUpdateRanks,
-  getResultStats
+  getResultStats,
+  truncateAllResults
 } from "../controllers/talentResultController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -30,5 +31,5 @@ router.get("/all", getAllResults);
 router.put("/update/:id", updateResult);
 router.delete("/delete/:id", deleteResult);
 router.get("/stats", getResultStats);
-
+router.delete("/truncate", truncateAllResults);
 export default router;
