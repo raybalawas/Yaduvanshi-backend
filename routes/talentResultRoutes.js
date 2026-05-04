@@ -32,4 +32,14 @@ router.put("/update/:id", updateResult);
 router.delete("/delete/:id", deleteResult);
 router.get("/stats", getResultStats);
 router.delete("/truncate", truncateAllResults);
+// Temporary route to fix existing data
+// Add this in routes temporarily
+router.post("/fix-percentages", async (req, res) => {
+  try {
+    const updated = await fixExistingPercentages();
+    res.json({ success: true, message: `Fixed ${updated} records` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 export default router;
