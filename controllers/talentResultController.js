@@ -557,6 +557,38 @@ export const truncateAllResults = async (req, res) => {
     });
   }
 };
+
+// @desc    Fix existing percentages (Temporary fix for old data)
+export const fixExistingPercentages = async () => {
+  try {
+    const allResults = await TalentResult.find({});
+    let updated = 0;
+    
+    for (const result of allResults) {
+      const totalMarks = getTotalMarksByClass(result.class);
+      const correctPercentage = calculatePercentage(result.marks, result.class);
+      const resultStatus = getResultStatus(correctPercentage);
+      const grade = getGrade(correctPercentage);
+      
+      if (result.percentage !== correctPercentage) {
+        result.totalMarks = totalMarks;
+        result.percentage = correctPercentage;
+        result.resultStatus = resultStatus;
+        result.grade = grade;
+        await result.save();
+        updated++;
+        console.log(`Updated: ${result.name} - Old: ${result.percentage}% → New: ${correctPercentage}%`);
+      }
+    }
+    
+    console.log(`✅ Fixed ${updated} records`);
+    return updated;
+  } catch (error) {
+    console.error("Fix percentages error:", error);
+    throw error;
+  }
+};
+
 // Public routes (no auth required)
 export const getAllResultsPublic = getAllResults;
 export const getResultStatsPublic = getResultStats;
