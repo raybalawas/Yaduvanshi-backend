@@ -9,7 +9,8 @@ import {
   deleteResult,
   calculateAndUpdateRanks,
   getResultStats,
-  truncateAllResults
+  truncateAllResults,
+  fixExistingPercentages
 } from "../controllers/talentResultController.js";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 
@@ -37,7 +38,7 @@ router.delete("/truncate", truncateAllResults);
 router.post("/fix-percentages", async (req, res) => {
   try {
     const updated = await fixExistingPercentages();
-    res.json({ success: true, message: `Fixed ${updated} records` });
+    res.json({ success: true, message: `Fixed ${updated} records`, updatedCount: updated });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
